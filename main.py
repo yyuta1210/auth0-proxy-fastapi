@@ -111,6 +111,8 @@ async def auth0_management(request: Request):
             print(f"Response Body: {response.text}")
             print("========================")
             response.raise_for_status()
+            if response.status_code == 204:
+                return {"message": "No Content: operation successful."}
             return response.json()
 
         except httpx.HTTPStatusError as e:
