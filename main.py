@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 import httpx
 import os
 import json
+import re
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -39,7 +40,6 @@ ACTION_MAP = {
     "delete_log_stream": ("DELETE", "/api/v2/log-streams/{id}"),
 }
 
-
 async def get_auth_token():
     async with httpx.AsyncClient() as client:
         response = await client.post(
@@ -53,7 +53,6 @@ async def get_auth_token():
         )
         response.raise_for_status()
         return response.json()["access_token"]
-
 
 @app.post("/auth0-management")
 async def auth0_management(request: Request):
@@ -96,12 +95,26 @@ async def auth0_management(request: Request):
         "Content-Type": "application/json"
     }
 
-    # クエリとボディの分離（Difyのリクエスト形式に対応）
+    # クエリパラメータの取り出し
     query_params = parameters.get("query", {})
-    body_data = parameters.get("body", {}) if method in ["POST", "PATCH", "PUT"] else {}
-    # PATCH/POST 用: user_metadataの型チェック
-    if "user_metadata" in body_data and not isinstance(body_data["user_metadata"], dict):
-        return JSONResponse(status_code=400, content={"error": "user_metadata must be an object"})
+
+    # PATCH/POST/PUT の場合、パスパラメータを除いた残りをbodyにする
+    if method in ["POST", "PATCH", "PUT"]:
+        # path_template に使われているパスパラメータ名を正規表現で抽出
+        path_params = re.findall(r"\{(\w+)\}", path_template)
+        # body_data は parameters のコピーからパスパラメータを除いたもの
+        body_data = parameters.copy()
+        for p in path_params:
+            body_data.pop(p, None)
+
+        # クエリパラメータも除く（Dify仕様次第で）
+        body_data.pop("query", None)
+
+        # user_metadataがあるなら型チェック
+        if "user_metadata" in body_data and not isinstance(body_data["user_metadata"], dict):
+            return JSONResponse(status_code=400, content={"error": "user_metadata must be an object"})
+    else:
+        body_data = {}
 
     url = f"https://{AUTH0_DOMAIN}{path}"
 
