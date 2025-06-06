@@ -13,7 +13,7 @@ AUDIENCE = f"https://{AUTH0_DOMAIN}/api/v2/"
 
 app = FastAPI()
 
-# アクションと対応するHTTPメソッドおよびエンドポイントのマッピング
+# アクションとエンドポイントの対応
 ACTION_MAP = {
     "list_users": ("GET", "/api/v2/users"),
     "get_user_by_id": ("GET", "/api/v2/users/{user_id}"),
@@ -36,7 +36,6 @@ ACTION_MAP = {
     "list_log_streams": ("GET", "/api/v2/log-streams"),
     "create_log_stream": ("POST", "/api/v2/log-streams"),
     "delete_log_stream": ("DELETE", "/api/v2/log-streams/{id}"),
-    # 必要に応じて他のエンドポイントを追加
 }
 
 async def get_auth_token():
@@ -59,29 +58,46 @@ async def auth0_management(request: Request):
     action = body.get("action")
     parameters = body.get("parameters", {})
 
+    print("=== Difyからのリクエスト ===")
+    print(f"Action: {action}")
+    print(f"Parameters: {parameters}")
+    print("===========================")
+
     if action not in ACTION_MAP:
+        print("[ERROR] Unsupported action")
         return JSONResponse(status_code=400, content={"error": "Unsupported action"})
 
     method, path_template = ACTION_MAP[action]
 
-    # パスパラメータの埋め込み
+    # パスパラメータを埋め込み
     try:
         path = path_template.format(**parameters)
     except KeyError as e:
+        print(f"[ERROR] Missing parameter for path: {e}")
         return JSONResponse(status_code=400, content={"error": f"Missing parameter: {e}"})
 
+    # トークン取得
     token = await get_auth_token()
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
 
-    # クエリパラメータとボディの分離
+    # クエリとボディの分離
     query_params = parameters.get("query", {})
-    body_data = parameters.get("body", {})
+    body_data = parameters.get("body", parameters if method in ["POST", "PATCH", "PUT"] else {})
+
+    url = f"https://{AUTH0_DOMAIN}{path}"
+
+    print("=== Auth0へのリクエスト ===")
+    print(f"Method: {method}")
+    print(f"URL: {url}")
+    print(f"Headers: {headers}")
+    print(f"Query Params: {query_params}")
+    print(f"Body: {body_data}")
+    print("===========================")
 
     async with httpx.AsyncClient() as client:
-        url = f"https://{AUTH0_DOMAIN}{path}"
         try:
             response = await client.request(
                 method=method,
@@ -90,9 +106,22 @@ async def auth0_management(request: Request):
                 params=query_params,
                 json=body_data if method in ["POST", "PATCH", "PUT"] else None
             )
+            print("=== Auth0レスポンス ===")
+            print(f"Status Code: {response.status_code}")
+            print(f"Response Body: {response.text}")
+            print("========================")
             response.raise_for_status()
             return response.json()
+
         except httpx.HTTPStatusError as e:
+            print("=== Auth0 APIエラー ===")
+            print(f"Status: {e.response.status_code}")
+            print(f"Body: {e.response.text}")
+            print("========================")
             return JSONResponse(status_code=e.response.status_code, content={"error": e.response.text})
+
         except Exception as e:
+            print("=== 予期しないエラー ===")
+            print(str(e))
+            print("=======================")
             return JSONResponse(status_code=500, content={"error": str(e)})
