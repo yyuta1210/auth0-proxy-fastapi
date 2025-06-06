@@ -16,7 +16,7 @@ app = FastAPI()
 # アクションとエンドポイントの対応
 ACTION_MAP = {
     "list_users": ("GET", "/api/v2/users"),
-    "get_user_by_id": ("GET", "/api/v2/users/{user_id}"),
+    "get_user": ("GET", "/api/v2/users/{user_id}"),
     "create_user": ("POST", "/api/v2/users"),
     "delete_user": ("DELETE", "/api/v2/users/{user_id}"),
     "update_user": ("PATCH", "/api/v2/users/{user_id}"),
