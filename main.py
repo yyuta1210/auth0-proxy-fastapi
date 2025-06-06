@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import httpx
 import os
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -38,6 +39,7 @@ ACTION_MAP = {
     "delete_log_stream": ("DELETE", "/api/v2/log-streams/{id}"),
 }
 
+
 async def get_auth_token():
     async with httpx.AsyncClient() as client:
         response = await client.post(
@@ -52,6 +54,7 @@ async def get_auth_token():
         response.raise_for_status()
         return response.json()["access_token"]
 
+
 @app.post("/auth0-management")
 async def auth0_management(request: Request):
     body = await request.json()
@@ -62,6 +65,13 @@ async def auth0_management(request: Request):
     print(f"Action: {action}")
     print(f"Parameters: {parameters}")
     print("===========================")
+
+    # パラメータが str の場合は辞書に変換
+    if isinstance(parameters, str):
+        try:
+            parameters = json.loads(parameters)
+        except json.JSONDecodeError:
+            return JSONResponse(status_code=400, content={"error": "Invalid parameters: not valid JSON string"})
 
     if action not in ACTION_MAP:
         print("[ERROR] Unsupported action")
@@ -75,6 +85,9 @@ async def auth0_management(request: Request):
     except KeyError as e:
         print(f"[ERROR] Missing parameter for path: {e}")
         return JSONResponse(status_code=400, content={"error": f"Missing parameter: {e}"})
+    except TypeError as e:
+        print(f"[ERROR] Invalid format arguments: {e}")
+        return JSONResponse(status_code=400, content={"error": f"Invalid parameter format: {e}"})
 
     # トークン取得
     token = await get_auth_token()
@@ -83,7 +96,7 @@ async def auth0_management(request: Request):
         "Content-Type": "application/json"
     }
 
-    # クエリとボディの分離
+    # クエリとボディの分離（Difyのリクエスト形式に対応）
     query_params = parameters.get("query", {})
     body_data = parameters.get("body", parameters if method in ["POST", "PATCH", "PUT"] else {})
 
