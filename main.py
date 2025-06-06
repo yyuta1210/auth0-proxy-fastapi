@@ -32,6 +32,12 @@ async def get_auth_token():
 @app.post("/auth0-management")
 async def auth0_management(request: Request):
     body = await request.json()
+
+    # ✅ リクエストボディをログ出力
+    print("=== Difyからの受信リクエスト ===")
+    print(body)
+    print("=== ======================= ===")
+
     action = body.get("action")
     parameters = body.get("parameters", {})
 
