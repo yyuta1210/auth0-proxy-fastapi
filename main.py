@@ -46,7 +46,7 @@ async def auth0_management(request: Request):
         headers = {"Authorization": f"Bearer {token}"}
 
         async with httpx.AsyncClient() as client:
-            if action == "getUsers":
+            if action in ["getUsers", "list_all_users"]:
                 r = await client.get(f"https://{AUTH0_DOMAIN}/api/v2/users", headers=headers)
             elif action == "getUserById":
                 user_id = parameters.get("user_id")
