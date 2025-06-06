@@ -98,7 +98,7 @@ async def auth0_management(request: Request):
 
     # クエリとボディの分離（Difyのリクエスト形式に対応）
     query_params = parameters.get("query", {})
-    body_data = parameters.get("body", parameters if method in ["POST", "PATCH", "PUT"] else {})
+    body_data = parameters.get("body", {}) if method in ["POST", "PATCH", "PUT"] else {}
 
     url = f"https://{AUTH0_DOMAIN}{path}"
 
