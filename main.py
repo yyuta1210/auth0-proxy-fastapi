@@ -99,6 +99,9 @@ async def auth0_management(request: Request):
     # クエリとボディの分離（Difyのリクエスト形式に対応）
     query_params = parameters.get("query", {})
     body_data = parameters.get("body", {}) if method in ["POST", "PATCH", "PUT"] else {}
+    # 安全チェック（オプション）
+    if "user_metadata" in body_data and not isinstance(body_data["user_metadata"], dict):
+    return JSONResponse(status_code=400, content={"error": "user_metadata must be an object"})
 
     url = f"https://{AUTH0_DOMAIN}{path}"
 
